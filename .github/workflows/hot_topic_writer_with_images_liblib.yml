@@ -248,14 +248,47 @@ jobs:
           attachments: |
             article_1_image.png,article_2_image.png,article_3_image.png
       
-      # 步骤4：上传文章和图片到仓库
+      # 步骤4：动态添加文件到Git并提交
       - name: 上传生成的文章和图片
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "🤖 AI生成今日热点文案+配图 (LiblibAI) ${{ github.event.head_commit.timestamp || '自动提交' }}"
-          file_pattern: 'generated_articles.json hot_topics.json article_1_image.png article_2_image.png article_3_image.png'
-          skip_dirty_check: true
-          skip_fetch: true
+        run: |
+          echo "检查生成的文件..."
+          
+          # 检查JSON文件
+          if [ -f "generated_articles.json" ]; then
+              echo "✓ 找到 generated_articles.json"
+              git add generated_articles.json
+          else
+              echo "✗ 未找到 generated_articles.json"
+          fi
+          
+          if [ -f "hot_topics.json" ]; then
+              echo "✓ 找到 hot_topics.json"
+              git add hot_topics.json
+          else
+              echo "✗ 未找到 hot_topics.json"
+          fi
+          
+          # 检查图片文件（动态添加所有生成的图片）
+          for img in article_*_image.png; do
+              if [ -f "$img" ]; then
+                  echo "✓ 找到图片: $img"
+                  git add "$img"
+              else
+                  echo "✗ 未找到图片: $img"
+              fi
+          done
+          
+          # 检查是否有文件需要提交
+          if git diff --staged --quiet; then
+              echo "没有文件需要提交"
+              exit 0
+          fi
+          
+          # 提交文件
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git commit -m "🤖 AI生成今日热点文案+配图 (LiblibAI) - ${{ github.event.head_commit.timestamp || '自动提交' }}"
+          git push
           
       # 步骤5：创建发布（包含图片）
       - name: 创建每日发布
