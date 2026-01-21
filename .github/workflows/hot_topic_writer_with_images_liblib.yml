@@ -100,7 +100,7 @@ jobs:
           images = []
           
           for idx, topic in enumerate(hot_topics[:3], 1):  # 只处理前3个
-              print(f"\\n正在为第{idx}个热点生成文案：{topic['title']}")
+              print(f"\n正在为第{idx}个热点生成文案：{topic['title']}")
               
               user_prompt = "请根据以下热点话题，写一篇适合今日头条的文章：\n\n热点标题：{topic['title']}\n来源平台：{topic['platform']}\n热度值：{topic['hotness']}\n\n要求：\n- 深入分析这个热点的来龙去脉\n- 提供独特的个人观点\n- 给读者带来实际价值或新认知\n- 避免口水话，每句话都要有意义\n- 同时生成一个适合作为封面图的中文提示词（image_prompt），要求简洁有力，适合AI绘画"
               
@@ -207,42 +207,15 @@ jobs:
           with open('generated_articles.json', 'w', encoding='utf-8') as f:
               json.dump(articles, f, ensure_ascii=False, indent=2)
           
-          print(f"\\n共生成 {len(articles)} 篇文章 + {len(images)} 张配图")
+          print(f"\n共生成 {len(articles)} 篇文章 + {len(images)} 张配图")
           
           # 生成邮件正文（包含图片链接）
-          email_body = f"""今日热点自动文案 - {datetime.now().strftime('%Y年%m月%d日')}
-===================================
-
-共生成 {len(articles)} 篇文章（每篇均包含AI生成的配图）：
-"""
+          email_body = f"今日热点自动文案 - {datetime.now().strftime('%Y年%m月%d日')}\\n===================================\\n\\n共生成 {len(articles)} 篇文章（每篇均包含AI生成的配图）：\\n"
           
           for idx, article in enumerate(articles, 1):
-              email_body += f"""
---------------------
-【文章 {idx}】
-标题：{article['title']}
-摘要：{article['summary']}
-标签：{', '.join(article['tags'])}
-
-【正文内容】
-{article['content']}
-
-【AI生成配图】
-提示词：{article['image_prompt']}
-文件名：{article['image_filename']}
-图片已上传至GitHub Release附件
-
-【原始热点】
-来源：{article['source_topic']['platform']}
-热度：{article['source_topic']['hotness']:,}
-
-"""
+              email_body += f"--------------------\\n【文章 {idx}】\\n标题：{article['title']}\\n摘要：{article['summary']}\\n标签：{', '.join(article['tags'])}\\n\\n【正文内容】\\n{article['content']}\\n\\n【AI生成配图】\\n提示词：{article['image_prompt']}\\n文件名：{article['image_filename']}\\n图片已上传至GitHub Release附件\\n\\n【原始热点】\\n来源：{article['source_topic']['platform']}\\n热度：{article['source_topic']['hotness']:,}\\n\\n"
           
-          email_body += f"""
-===================================
-生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-由AI助手自动生成 | GitHub Actions + LiblibAI
-"""
+          email_body += f"===================================\\n生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\\n由AI助手自动生成 | GitHub Actions + LiblibAI\\n"
           
           # 保存邮件正文到文件
           with open('email_body.txt', 'w', encoding='utf-8') as f:
