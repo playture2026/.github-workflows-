@@ -253,7 +253,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "🤖 AI生成今日热点文案+配图 (LiblibAI) ${{ github.event.head_commit.timestamp || '自动提交' }}"
-          file_pattern: 'generated_articles.json hot_topics.json article_*.png'
+          file_pattern: 'generated_articles.json hot_topics.json article_1_image.png article_2_image.png article_3_image.png'
           skip_dirty_check: true
           skip_fetch: true
           
