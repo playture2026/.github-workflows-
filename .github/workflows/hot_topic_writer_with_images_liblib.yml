@@ -102,19 +102,7 @@ jobs:
           for idx, topic in enumerate(hot_topics[:3], 1):  # 只处理前3个
               print(f"\\n正在为第{idx}个热点生成文案：{topic['title']}")
               
-              user_prompt = f"""请根据以下热点话题，写一篇适合今日头条的文章：
-
-热点标题：{topic['title']}
-来源平台：{topic['platform']}
-热度值：{topic['hotness']}
-
-要求：
-- 深入分析这个热点的来龙去脉
-- 提供独特的个人观点
-- 给读者带来实际价值或新认知
-- 避免口水话，每句话都要有意义
-- 同时生成一个适合作为封面图的中文提示词（image_prompt），要求简洁有力，适合AI绘画
-"""
+              user_prompt = "请根据以下热点话题，写一篇适合今日头条的文章：\n\n热点标题：{topic['title']}\n来源平台：{topic['platform']}\n热度值：{topic['hotness']}\n\n要求：\n- 深入分析这个热点的来龙去脉\n- 提供独特的个人观点\n- 给读者带来实际价值或新认知\n- 避免口水话，每句话都要有意义\n- 同时生成一个适合作为封面图的中文提示词（image_prompt），要求简洁有力，适合AI绘画"
               
               try:
                   # 生成文案
