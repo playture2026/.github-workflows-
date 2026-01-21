@@ -231,8 +231,10 @@ jobs:
           
           EOF
       
-      # 步骤3：发送邮件通知
+      # 步骤3：发送邮件通知（带容错）
       - name: 发送邮件通知
+        id: send_email
+        continue-on-error: true
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.qq.com
@@ -247,6 +249,19 @@ jobs:
           convert_markdown: false
           attachments: |
             article_1_image.png,article_2_image.png,article_3_image.png
+      
+      # 步骤3.1：检查邮件发送状态
+      - name: 检查邮件发送状态
+        run: |
+          if [ "${{ steps.send_email.outcome }}" == "failure" ]; then
+            echo "⚠️  邮件发送失败，可能原因："
+            echo "  1. SMTP配置错误（EMAIL_USERNAME, EMAIL_PASSWORD, EMAIL_TO）"
+            echo "  2. 附件文件不存在"
+            echo "  3. 网络连接问题"
+            echo "继续执行文件上传步骤..."
+          else
+            echo "✓ 邮件发送成功"
+          fi
       
       # 步骤4：动态添加文件到Git并提交
       - name: 上传生成的文章和图片
@@ -284,9 +299,14 @@ jobs:
               exit 0
           fi
           
-          # 提交文件
+          # 配置Git用户信息
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
+          
+          # 使用GITHUB_TOKEN进行认证推送
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          
+          # 提交并推送
           git commit -m "🤖 AI生成今日热点文案+配图 (LiblibAI) - ${{ github.event.head_commit.timestamp || '自动提交' }}"
           git push
           
