@@ -88,9 +88,15 @@ jobs:
           )
           
           # LiblibAI配置
-          LIBLIB_API_BASE = "${{ secrets.LIBLIB_API_BASE or 'https://api.liblib.art' }}"
+          LIBLIB_API_BASE = "${{ secrets.LIBLIB_API_BASE }}"
+          if not LIBLIB_API_BASE:
+              LIBLIB_API_BASE = "https://api.liblib.art"
+          
           LIBLIB_ACCESS_TOKEN = "${{ secrets.LIBLIB_ACCESS_TOKEN }}"
-          LIBLIB_MODEL_ID = "${{ secrets.LIBLIB_MODEL_ID or 'sd_xl_base_1.0' }}"
+          
+          LIBLIB_MODEL_ID = "${{ secrets.LIBLIB_MODEL_ID }}"
+          if not LIBLIB_MODEL_ID:
+              LIBLIB_MODEL_ID = "sd_xl_base_1.0"
           
           # 系统提示词
           system_prompt = "你是一位专业的今日头条自媒体撰稿人，擅长根据热点话题创作吸引人的文章。\n\n写作要求：\n1. 标题要吸引人但不标题党，体现核心观点\n2. 正文1200-1500字，分段清晰，适合手机阅读\n3. 必须有个人观点，不能只是客观陈述\n4. 每段不超过200字，使用短句\n5. 关键数据要用具体数字（即使需要合理估算）\n6. 结尾要有互动引导（提问或评论邀请）\n7. 语言风格：亲切自然，像和朋友聊天\n\n输出格式（JSON）：\n{\"title\": \"文章标题\", \"content\": \"正文内容（使用\\\\n\\\\n分段）\", \"summary\": \"50字摘要\", \"tags\": [\"标签1\", \"标签2\", \"标签3\"], \"image_prompt\": \"用于生成封面图的中文提示词\"}"
