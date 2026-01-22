@@ -89,7 +89,7 @@ jobs:
           
           # 设置输出值
           print(f'::set-output name=topic_count::{len(hot_topics)}')
-          print(f'::set-output name=first_title::{hot_topics[0]["title"]}')
+          print(f'::set-output name=first_title::{hot_topics[0][\"title\"]}')
           "
 
       - name: Generate Content and Images with AI
@@ -134,14 +134,14 @@ jobs:
           
           # 初始化DeepSeek客户端
           client = OpenAI(
-              api_key='${{ secrets.DEEPSEEK_API_KEY }}',
+              api_key='\${{ secrets.DEEPSEEK_API_KEY }}',
               base_url='https://api.deepseek.com'
           )
           
           # LiblibAI配置
-          LIBLIB_API_BASE = '${{ secrets.LIBLIB_API_BASE || ''https://api.liblib.art'' }}'
-          LIBLIB_ACCESS_TOKEN = '${{ secrets.LIBLIB_ACCESS_TOKEN }}'
-          LIBLIB_MODEL_ID = '${{ secrets.LIBLIB_MODEL_ID || ''sd_xl_base_1.0'' }}'
+          liblib_api_base = '\${{ secrets.LIBLIB_API_BASE }}' or 'https://api.liblib.art'
+          liblib_access_token = '\${{ secrets.LIBLIB_ACCESS_TOKEN }}'
+          liblib_model_id = '\${{ secrets.LIBLIB_MODEL_ID }}' or 'sd_xl_base_1.0'
           
           # 存储生成的文章
           articles = []
@@ -205,14 +205,14 @@ jobs:
                   
                   # 调用LiblibAI生成图像
                   headers = {
-                      'Authorization': f'Bearer {LIBLIB_ACCESS_TOKEN}',
+                      'Authorization': f'Bearer {liblib_access_token}',
                       'Content-Type': 'application/json'
                   }
                   
                   payload = {
                       'prompt': image_prompt,
                       'negative_prompt': 'low quality, blurry, bad anatomy',
-                      'model': LIBLIB_MODEL_ID,
+                      'model': liblib_model_id,
                       'width': 1024,
                       'height': 1024,
                       'steps': 30,
@@ -220,7 +220,7 @@ jobs:
                   }
                   
                   image_response = requests.post(
-                      f'{LIBLIB_API_BASE}/v1/images/generations',
+                      f'{liblib_api_base}/v1/images/generations',
                       headers=headers,
                       json=payload,
                       timeout=120
