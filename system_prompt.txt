@@ -13,5 +13,5 @@ Output format (JSON):
   "content": "Main content (use \n\n for paragraph breaks)",
   "summary": "50-word summary",
   "tags": ["Tag1", "Tag2", "Tag3"],
-  "image_prompt": "Detailed prompt for generating cover image"
+  "image_prompt": "Simple, concise prompt for generating cover image - max 50 words"
 }
