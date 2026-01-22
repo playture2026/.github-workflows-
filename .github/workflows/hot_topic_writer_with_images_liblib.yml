@@ -2,49 +2,49 @@ name: Hot Topic Auto Writer with Images (LiblibAI)
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 每天0点UTC执行（北京时间早上8点）
-  workflow_dispatch:  # 支持手动触发
+    - cron: '0 0 * * *'  # Execute every day at 00:00 UTC (8:00 AM Beijing time)
+  workflow_dispatch:  # Support manual trigger
 
 jobs:
   writer:
     runs-on: ubuntu-latest
     
     steps:
-      - name: 获取代码
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
       
-      # 设置Python环境
-      - name: 设置Python
+      # Set up Python environment
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       
-      # 安装依赖
-      - name: 安装依赖
+      # Install dependencies
+      - name: Install Dependencies
         run: |
           pip install requests beautifulsoup4 lxml openai pillow
 
-      # 验证必要的密钥是否存在
-      - name: 验证API密钥
+      # Verify required secrets exist
+      - name: Verify API Keys
         run: |
           if [ -z "${{ secrets.DEEPSEEK_API_KEY }}" ]; then
-            echo "错误：缺少DEEPSEEK_API_KEY密钥"
+            echo "Error: Missing DEEPSEEK_API_KEY secret"
             exit 1
           fi
           if [ -z "${{ secrets.LIBLIB_ACCESS_TOKEN }}" ]; then
-            echo "错误：缺少LIBLIB_ACCESS_TOKEN密钥"
+            echo "Error: Missing LIBLIB_ACCESS_TOKEN secret"
             exit 1
           fi
           if [ -z "${{ secrets.EMAIL_USERNAME }}" ] || [ -z "${{ secrets.EMAIL_PASSWORD }}" ]; then
-            echo "错误：缺少EMAIL相关密钥"
+            echo "Error: Missing EMAIL related secrets"
             exit 1
           fi
-          echo "API密钥验证通过"
+          echo "API key validation passed"
 
-      # 步骤1：获取热点数据
-      - name: 获取热点话题
+      # Step 1: Get trending data
+      - name: Get Trending Topics
         id: fetch_hot_topics
         run: |
           python << 'EOF'
@@ -52,65 +52,65 @@ jobs:
           import json
           from datetime import datetime
           
-          # 实际获取热点数据的函数
+          # Function to get actual trending data
           def get_hot_topics():
               """
-              这里需要根据实际情况获取真实的热点数据
-              示例使用模拟数据，实际应用中需要替换为真实API调用
+              This needs to get real trending data based on actual situation
+              Example using mock data, replace with real API calls in practice
               """
               try:
-                  # 示例：从某个API获取真实热点数据
+                  # Example: Get real trending data from some API
                   # response = requests.get("https://api.example.com/hot-topics")
                   # real_topics = response.json()
                   
-                  # 暂时使用模拟数据，实际使用时请替换
+                  # Temporarily using mock data, replace when actually used
                   hot_topics = [
                       {
-                          "title": "示例热点1：AI技术在医疗领域的突破性进展",
-                          "platform": "今日头条",
+                          "title": "Example Trend 1: Breakthrough progress of AI technology in medical field",
+                          "platform": "Toutiao",
                           "hotness": 1000000,
                           "url": "https://example.com/news1"
                       },
                       {
-                          "title": "示例热点2：新能源汽车销量再创新高",
-                          "platform": "微博",
+                          "title": "Example Trend 2: New energy vehicle sales hit a new high again",
+                          "platform": "Weibo",
                           "hotness": 850000,
                           "url": "https://example.com/news2"
                       },
                       {
-                          "title": "示例热点3：量子计算取得重要里程碑",
-                          "platform": "今日头条",
+                          "title": "Example Trend 3: Important milestone achieved in quantum computing",
+                          "platform": "Toutiao",
                           "hotness": 720000,
                           "url": "https://example.com/news3"
                       }
                   ]
                   return hot_topics
               except Exception as e:
-                  print(f"获取热点数据失败: {str(e)}")
-                  # 返回默认数据以防API调用失败
+                  print(f"Failed to get trending data: {str(e)}")
+                  # Return default data in case of API call failure
                   return [
                       {
-                          "title": "默认热点：今日科技新闻综述",
-                          "platform": "综合",
+                          "title": "Default Trend: Today's Tech News Summary",
+                          "platform": "Comprehensive",
                           "hotness": 500000,
                           "url": "https://example.com/default"
                       }
                   ]
           
-          # 获取热点数据
+          # Get trending data
           hot_topics = get_hot_topics()
           
-          # 保存热点数据
+          # Save trending data
           with open('hot_topics.json', 'w', encoding='utf-8') as f:
               json.dump(hot_topics, f, ensure_ascii=False, indent=2)
           
           print(f"::set-output name=topic_count::{len(hot_topics)}")
-          print(f"获取到 {len(hot_topics)} 个热点话题")
+          print(f"Got {len(hot_topics)} trending topics")
           
           EOF
       
-      # 步骤2：AI生成文案 + 配图（使用LiblibAI）
-      - name: AI生成文案和配图
+      # Step 2: AI generate copy + images (using LiblibAI)
+      - name: Generate Copy and Images with AI
         id: ai_generation
         run: |
           python << 'EOF'
@@ -121,73 +121,74 @@ jobs:
           from datetime import datetime
           from openai import OpenAI
           
-          # 读取热点数据
+          # Read trending data
           try:
               with open('hot_topics.json', 'r', encoding='utf-8') as f:
                   hot_topics = json.load(f)
           except FileNotFoundError:
-              print("错误：找不到hot_topics.json文件")
+              print("Error: Cannot find hot_topics.json file")
               exit(1)
           except json.JSONDecodeError:
-              print("错误：hot_topics.json文件格式不正确")
+              print("Error: hot_topics.json file format is incorrect")
               exit(1)
           
-          # 初始化文本生成客户端（使用DeepSeek）
+          # Initialize text generation client (using DeepSeek)
           text_client = OpenAI(
               api_key="${{ secrets.DEEPSEEK_API_KEY }}",
               base_url="https://api.deepseek.com"
           )
           
-          # LiblibAI配置
+          # LiblibAI configuration
           LIBLIB_API_BASE = "${{ secrets.LIBLIB_API_BASE or 'https://api.liblib.art' }}"
           LIBLIB_ACCESS_TOKEN = "${{ secrets.LIBLIB_ACCESS_TOKEN }}"
           LIBLIB_MODEL_ID = "${{ secrets.LIBLIB_MODEL_ID or 'sd_xl_base_1.0' }}"
           
-          # 系统提示词
-          system_prompt = """你是一位专业的今日头条自媒体撰稿人，擅长根据热点话题创作吸引人的文章。
+          # System prompt - using safe string literal syntax
+          system_prompt = '''You are a professional Toutiao media writer, skilled at creating attractive articles based on trending topics.
 
-写作要求：
-1. 标题要吸引人但不标题党，体现核心观点
-2. 正文1200-1500字，分段清晰，适合手机阅读
-3. 必须有个人观点，不能只是客观陈述
-4. 每段不超过200字，使用短句
-5. 关键数据要用具体数字（即使需要合理估算）
-6. 结尾要有互动引导（提问或评论邀请）
-7. 语言风格：亲切自然，像和朋友聊天
+Writing requirements:
+1. Title should be attractive but not clickbait, reflecting core viewpoints
+2. Main content 1200-1500 words, clearly structured paragraphs suitable for mobile reading
+3. Must include personal opinions, not just objective statements
+4. Each paragraph under 200 words, using short sentences
+5. Key data must use specific numbers (even reasonable estimates)
+6. End with interactive guidance (questions or comment invitations)
+7. Language style: friendly and natural, like chatting with friends
 
-输出格式（JSON）：
+Output format (JSON):
 {
-  "title": "文章标题",
-  "content": "正文内容（使用\\n\\n分段）",
-  "summary": "50字摘要",
-  "tags": ["标签1", "标签2", "标签3"],
-  "image_prompt": "用于生成封面图的中文提示词"
+  "title": "Article title",
+  "content": "Main content (use \\n\\n for paragraph breaks)",
+  "summary": "50-word summary",
+  "tags": ["Tag1", "Tag2", "Tag3"],
+  "image_prompt": "Chinese prompt for generating cover image"
 }
-"""
+'''
           
-          # 为每个热点生成文案和配图
+          # Generate copy and images for each trending topic
           articles = []
           images = []
           
-          for idx, topic in enumerate(hot_topics[:3], 1):  # 只处理前3个
-              print(f"\\n正在为第{idx}个热点生成文案：{topic['title']}")
+          for idx, topic in enumerate(hot_topics[:3], 1):  # Process only first 3
+              print(f"\\nGenerating copy for #{idx} trend: {topic['title']}")
               
-              user_prompt = f"""请根据以下热点话题，写一篇适合今日头条的文章：
+              # User prompt - using safe string literal syntax
+              user_prompt = f'''Please write an article suitable for Toutiao based on the following trending topic:
 
-热点标题：{topic['title']}
-来源平台：{topic['platform']}
-热度值：{topic['hotness']}
+Trend Title: {topic['title']}
+Source Platform: {topic['platform']}
+Popularity: {topic['hotness']}
 
-要求：
-- 深入分析这个热点的来龙去脉
-- 提供独特的个人观点
-- 给读者带来实际价值或新认知
-- 避免口水话，每句话都要有意义
-- 同时生成一个适合作为封面图的中文提示词（image_prompt），要求简洁有力，适合AI绘画
-"""
+Requirements:
+- Analyze the background and development of this trend in depth
+- Provide unique personal insights
+- Bring actual value or new knowledge to readers
+- Avoid empty talk, every sentence should have meaning
+- Also generate Chinese prompt for cover image (image_prompt), requiring concise and powerful, suitable for AI painting
+'''
               
               try:
-                  # 生成文案
+                  # Generate copy
                   response = text_client.chat.completions.create(
                       model="deepseek-chat",
                       messages=[
@@ -198,12 +199,12 @@ jobs:
                       max_tokens=2000
                   )
                   
-                  # 解析AI返回的内容
+                  # Parse AI returned content
                   ai_content = response.choices[0].message.content.strip()
                   
-                  # 尝试解析JSON格式
+                  # Try to parse JSON format
                   article_data = None
-                  # 从AI回复中提取JSON部分（可能有其他文本）
+                  # Extract JSON part from AI response (may have other text)
                   start_idx = ai_content.find('{')
                   end_idx = ai_content.rfind('}') + 1
                   if start_idx != -1 and end_idx != 0:
@@ -211,25 +212,25 @@ jobs:
                       try:
                           article_data = json.loads(json_str)
                       except json.JSONDecodeError:
-                          print(f"JSON解析失败，尝试手动构建")
+                          print(f"JSON parsing failed, trying manual construction")
                   
-                  # 如果无法解析JSON，则手动构建
+                  # If unable to parse JSON, manually construct
                   if not article_data:
                       article_data = {
                           "title": topic['title'],
                           "content": ai_content.replace('\\n', '\\n\\n'),
                           "summary": ai_content[:50] + "...",
-                          "tags": ["热点", "资讯"],
-                          "image_prompt": topic['title'] + "，专业插图，现代设计"
+                          "tags": ["Trends", "News"],
+                          "image_prompt": topic['title'] + ", professional illustration, modern design"
                       }
                   
-                  # 生成配图（使用LiblibAI）
+                  # Generate image (using LiblibAI)
                   image_prompt = article_data.get('image_prompt', 
-                      f"{article_data['title']}，专业插图，现代设计，干净背景")
+                      f"{article_data['title']}, professional illustration, modern design, clean background")
                   
-                  print(f"正在生成配图，提示词：{image_prompt}")
+                  print(f"Generating image, prompt: {image_prompt}")
                   
-                  # 调用LiblibAI API生成图片
+                  # Call LiblibAI API to generate image
                   liblib_headers = {
                       "Authorization": f"Bearer {LIBLIB_ACCESS_TOKEN}",
                       "Content-Type": "application/json"
@@ -237,7 +238,7 @@ jobs:
                   
                   liblib_payload = {
                       "prompt": image_prompt,
-                      "negative_prompt": "低质量，模糊，解剖结构错误，多指，丑陋，水印",
+                      "negative_prompt": "low quality, blurry, anatomical errors, extra fingers, ugly, watermark",
                       "model": LIBLIB_MODEL_ID,
                       "width": 1024,
                       "height": 1024,
@@ -249,25 +250,25 @@ jobs:
                       f"{LIBLIB_API_BASE}/v1/images/generations",
                       headers=liblib_headers,
                       json=liblib_payload,
-                      timeout=120  # 增加超时时间
+                      timeout=120  # Increase timeout
                   )
                   
                   if liblib_response.status_code != 200:
-                      print(f"警告：LiblibAI API调用失败: {liblib_response.text}")
-                      # 创建占位图片
+                      print(f"Warning: LiblibAI API call failed: {liblib_response.text}")
+                      # Create placeholder image
                       image_filename = f"article_{idx}_image.png"
                       import io
                       from PIL import Image
                       img = Image.new('RGB', (1024, 1024), color='white')
                       img.save(image_filename)
-                      print(f"创建占位图片：{image_filename}")
+                      print(f"Created placeholder image: {image_filename}")
                   else:
                       liblib_result = liblib_response.json()
                       
-                      # 处理返回的图片（支持URL或Base64）
+                      # Process returned image (support URL or Base64)
                       if "images" in liblib_result and len(liblib_result["images"]) > 0:
                           if "url" in liblib_result["images"][0]:
-                              # 方式1：返回图片URL，需要下载
+                              # Method 1: Return image URL, need download
                               image_url = liblib_result["images"][0]["url"]
                               image_filename = f"article_{idx}_image.png"
                               
@@ -275,27 +276,27 @@ jobs:
                               urllib.request.urlretrieve(image_url, image_filename)
                               
                           elif "b64_json" in liblib_result["images"][0]:
-                              # 方式2：返回Base64编码，直接解码保存
+                              # Method 2: Return Base64 encoded, decode directly
                               image_data = base64.b64decode(liblib_result["images"][0]["b64_json"])
                               image_filename = f"article_{idx}_image.png"
                               
                               with open(image_filename, 'wb') as img_file:
                                   img_file.write(image_data)
                           else:
-                              print("警告：LiblibAI返回的数据格式不符合预期，创建占位图片")
+                              print("Warning: LiblibAI returned data format unexpected, creating placeholder image")
                               image_filename = f"article_{idx}_image.png"
                               from PIL import Image
                               img = Image.new('RGB', (1024, 1024), color='lightblue')
                               img.save(image_filename)
                       else:
-                          print("警告：LiblibAI未返回图片数据，创建占位图片")
+                          print("Warning: LiblibAI did not return image data, creating placeholder image")
                           image_filename = f"article_{idx}_image.png"
                           from PIL import Image
                           img = Image.new('RGB', (1024, 1024), color='lightgreen')
                           img.save(image_filename)
                   
-                  print(f"✓ 文章生成成功：{article_data['title']}")
-                  print(f"✓ 配图生成成功：{image_filename}")
+                  print(f"✓ Article generated successfully: {article_data['title']}")
+                  print(f"✓ Image generated successfully: {image_filename}")
                   
                   article_data['source_topic'] = topic
                   article_data['generated_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -305,70 +306,70 @@ jobs:
                   images.append(image_filename)
                   
               except Exception as e:
-                  print(f"✗ 生成失败：{str(e)}")
-                  # 继续处理下一个热点
+                  print(f"✗ Generation failed: {str(e)}")
+                  # Continue processing next trend
                   continue
           
-          # 保存所有文章
+          # Save all articles
           with open('generated_articles.json', 'w', encoding='utf-8') as f:
               json.dump(articles, f, ensure_ascii=False, indent=2)
           
-          print(f"\\n共生成 {len(articles)} 篇文章 + {len(images)} 张配图")
+          print(f"\\nGenerated {len(articles)} articles + {len(images)} images")
           
-          # 生成邮件正文（包含图片链接）
-          email_body = f"""今日热点自动文案 - {datetime.now().strftime('%Y年%m月%d日')}
+          # Generate email body (including image links)
+          email_body = f'''Today's Trending Auto Copy - {datetime.now().strftime('%Y-%m-%d')}
 ===================================
 
-共生成 {len(articles)} 篇文章（每篇均包含AI生成的配图）：
-"""
+Generated {len(articles)} articles (each includes AI-generated image):
+'''
           
           for idx, article in enumerate(articles, 1):
-              email_body += f"""
+              email_body += f'''
 --------------------
-【文章 {idx}】
-标题：{article['title']}
-摘要：{article['summary']}
-标签：{', '.join(article['tags'])}
+[Article {idx}]
+Title: {article['title']}
+Summary: {article['summary']}
+Tags: {', '.join(article['tags'])}
 
-【正文内容】
+[Main Content]
 {article['content']}
 
-【AI生成配图】
-提示词：{article['image_prompt']}
-文件名：{article['image_filename']}
-图片已上传至GitHub Release附件
+[AI Generated Image]
+Prompt: {article['image_prompt']}
+Filename: {article['image_filename']}
+Image uploaded to GitHub Release attachment
 
-【原始热点】
-来源：{article['source_topic']['platform']}
-热度：{article['source_topic']['hotness']:,}
+[Original Trend]
+Source: {article['source_topic']['platform']}
+Popularity: {article['source_topic']['hotness']:,}
 
-"""
+'''
           
-          email_body += f"""
+          email_body += f'''
 ===================================
-生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-由AI助手自动生成 | GitHub Actions + LiblibAI
-"""
+Generation Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Automatically generated by AI assistant | GitHub Actions + LiblibAI
+'''
           
-          # 保存邮件正文到文件
+          # Save email body to file
           with open('email_body.txt', 'w', encoding='utf-8') as f:
               f.write(email_body)
           
-          print("邮件正文已生成")
+          print("Email body generated")
           
           EOF
       
-      # 步骤3：发送邮件通知
-      - name: 发送邮件通知
+      # Step 3: Send email notification
+      - name: Send Email Notification
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.qq.com
           server_port: 587
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "📝🖼️ 今日热点自动文案+配图 (LiblibAI) - ${{ github.event.head_commit.timestamp || '刚刚生成' }}"
+          subject: "📝🖼️ Today's Trending Auto Copy+Images (LiblibAI) - ${{ github.event.head_commit.timestamp || 'Just Generated' }}"
           to: ${{ secrets.EMAIL_TO }}
-          from: "AI热点助手 <${{ secrets.EMAIL_USERNAME }}>"
+          from: "AI Trend Assistant <${{ secrets.EMAIL_USERNAME }}>"
           priority: high
           body: file://email_body.txt
           convert_markdown: false
@@ -378,38 +379,38 @@ jobs:
             article_3_image.png
         if: ${{ success() && steps.fetch_hot_topics.outputs.topic_count > 0 }}
       
-      # 步骤4：上传文章和图片到仓库
-      - name: 上传生成的文章和图片
+      # Step 4: Upload articles and images to repository
+      - name: Upload Generated Articles and Images
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "🤖 AI生成今日热点文案+配图 (LiblibAI) ${{ github.event.head_commit.timestamp || '自动提交' }}"
+          commit_message: "🤖 AI generated today's trending copy+images (LiblibAI) ${{ github.event.head_commit.timestamp || 'Auto Commit' }}"
           file_pattern: 'generated_articles.json hot_topics.json article_*.png'
           skip_dirty_check: true
           skip_fetch: true
         if: ${{ success() }}
           
-      # 步骤5：创建发布（包含图片）
-      - name: 创建每日发布
+      # Step 5: Create release (with images)
+      - name: Create Daily Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: daily-${{ github.run_id }}
-          name: "📄🖼️ 今日热点文案+配图 (LiblibAI) - ${{ github.event.head_commit.timestamp || '最新' }}"
+          name: "📄🖼️ Today's Trending Copy+Images (LiblibAI) - ${{ github.event.head_commit.timestamp || 'Latest' }}"
           body: |
-            ## 今日自动生成的热点文案（含AI配图）
+            ## Today's Auto-generated Trending Copy (with AI Images)
 
-            本发布包含了AI根据今日热点自动生成的文章，每篇文章都配有LiblibAI生成的封面图。
+            This release contains AI-generated articles based on today's trends, each article comes with a LiblibAI-generated cover image.
 
-            ### 📚 文章列表
+            ### 📚 Article List
 
-            📄 查看完整内容请下载 `generated_articles.json` 文件。
+            📄 Download `generated_articles.json` file to view complete content.
 
-            ### 🖼️ 配图列表
+            ### 🖼️ Image List
 
-            每篇文章都有一张AI生成的1024x1024封面图
+            Each article has a 1024x1024 AI-generated cover image
 
             ---
 
-            🤖 由GitHub Actions + DeepSeek AI + LiblibAI自动生成
+            🤖 Automatically generated by GitHub Actions + DeepSeek AI + LiblibAI
           files: |
             generated_articles.json
             hot_topics.json
@@ -421,14 +422,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: ${{ success() }}
       
-      # 步骤6：清理旧数据（保留最近30天）
-      - name: 清理历史数据
+      # Step 6: Clean up old data (keep recent 30 days)
+      - name: Clean Up Historical Data
         run: |
-          # 仅保留最近10个标签
-          for tag in $(git tag --sort=-creatordate | head -n -10); do
-            git tag -d "$tag"
-          done
-          
-          # 推送标签删除操作
-          git push origin --delete $(git tag --sort=-creatordate | head -n -10) || true
+          # Delete expired tags (keep most recent 10)
+          git tag | sort -V | head -n -10 | xargs -r git tag -d 2>/dev/null || true
+          # Push deleted tags to remote
+          git tag | sort -V | head -n -10 | xargs -r git push origin --delete 2>/dev/null || true
         if: ${{ always() }}
