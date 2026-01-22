@@ -176,7 +176,7 @@ jobs:
           for idx, topic in enumerate(hot_topics[:3], 1):  # Process only first 3
               print(f"\\nGenerating copy for #{idx} trend: {topic['title']}")
               
-              # User prompt - using proper YAML multiline string format
+              # User prompt
               user_prompt = f"""Please write an article suitable for Toutiao based on the following trending topic:
 
 Trend Title: {topic['title']}
