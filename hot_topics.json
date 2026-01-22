@@ -1,20 +1,23 @@
 [
   {
-    "title": "示例热点1：AI技术在医疗领域的突破性进展",
-    "platform": "今日头条",
-    "hotness": 1000000,
-    "url": "https://example.com/news1"
+    "title": "今日科技突破：01月22日AI新进展",
+    "platform": "TechNews",
+    "hotness": 1200000,
+    "url": "https://example.com/news1",
+    "category": "科技"
   },
   {
-    "title": "示例热点2：新能源汽车销量再创新高",
-    "platform": "微博",
-    "hotness": 850000,
-    "url": "https://example.com/news2"
+    "title": "新能源汽车销量再创新高 - 2026年",
+    "platform": "FinanceDaily",
+    "hotness": 950000,
+    "url": "https://example.com/news2",
+    "category": "财经"
   },
   {
-    "title": "示例热点3：量子计算取得重要里程碑",
-    "platform": "今日头条",
-    "hotness": 720000,
-    "url": "https://example.com/news3"
+    "title": "量子计算取得重要里程碑突破",
+    "platform": "ScienceWeekly",
+    "hotness": 820000,
+    "url": "https://example.com/news3",
+    "category": "科学"
   }
 ]
