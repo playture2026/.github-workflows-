@@ -8,7 +8,8 @@ on:
 jobs:
   writer:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: write
     steps:
       - name: 获取代码
         uses: actions/checkout@v4
@@ -168,7 +169,17 @@ jobs:
                   )
                   
                   if liblib_response.status_code != 200:
-                      raise Exception(f"LiblibAI API调用失败: {liblib_response.text}")
+                      error_detail = liblib_response.text if liblib_response.text else "无响应"
+                    print(f"\n❌ LiblibAI API调用失败")
+                    print(f"状态码: {liblib_response.status_code}")
+                    print(f"错误详情: {error_detail[:200]}")
+                    print(f"\n💡 可能的原因:")
+                    print("1. LIBLIB_ACCESS_TOKEN无效或过期")
+                    print("2. API端点不正确")
+                    print("3. 参数格式错误")
+                    print("4. 服务暂时不可用")
+                    print(f"\n跳过图片生成，继续处理下一个热点...")
+                    continue
                   
                   liblib_result = liblib_response.json()
                   
@@ -304,10 +315,18 @@ jobs:
           git config user.email "actions@github.com"
           
           # 使用GITHUB_TOKEN进行认证推送
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git
           
           # 提交并推送
           git commit -m "🤖 AI生成今日热点文案+配图 (LiblibAI) - ${{ github.event.head_commit.timestamp || '自动提交' }}"
+          # 调试信息
+          echo "当前分支: $(git branch --show-current)"
+          echo "远程仓库URL: $(git remote get-url origin)"
+          # 尝试推送，如果失败则显示详细错误
+          git push || {
+            echo "推送失败，尝试强制推送...";
+            git push --force || exit 1;
+          }
           git push
           
       # 步骤5：创建发布（包含图片）
