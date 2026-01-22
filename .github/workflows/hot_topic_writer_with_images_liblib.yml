@@ -424,12 +424,11 @@ jobs:
       # 步骤6：清理旧数据（保留最近30天）
       - name: 清理历史数据
         run: |
-          # 由于GitHub限制，我们使用不同的方式清理标签
           # 仅保留最近10个标签
-          for tag in $(git tag --sort=-creatordate | tail -n +11); do
+          for tag in $(git tag --sort=-creatordate | head -n -10); do
             git tag -d "$tag"
           done
           
           # 推送标签删除操作
-          git push origin --delete $(git tag --sort=-creatordate | tail -n +11) || true
+          git push origin --delete $(git tag --sort=-creatordate | head -n -10) || true
         if: ${{ always() }}
