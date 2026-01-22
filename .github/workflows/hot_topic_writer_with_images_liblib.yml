@@ -376,7 +376,7 @@ jobs:
             article_1_image.png
             article_2_image.png
             article_3_image.png
-        if: ${{ success() && steps.ai_generation.outputs.topic_count > 0 }}
+        if: ${{ success() && steps.fetch_hot_topics.outputs.topic_count > 0 }}
       
       # 步骤4：上传文章和图片到仓库
       - name: 上传生成的文章和图片
@@ -396,22 +396,22 @@ jobs:
           name: "📄🖼️ 今日热点文案+配图 (LiblibAI) - ${{ github.event.head_commit.timestamp || '最新' }}"
           body: |
             ## 今日自动生成的热点文案（含AI配图）
-            
+
             本发布包含了AI根据今日热点自动生成的${{ steps.fetch_hot_topics.outputs.topic_count }}篇文章，每篇文章都配有LiblibAI生成的封面图。
-            
+
             ### 📚 文章列表
-            
+
             📄 查看完整内容请下载 `generated_articles.json` 文件。
-            
+
             ### 🖼️ 配图列表
-            
+
             每篇文章都有一张AI生成的1024x1024封面图：
             {% for i in (1..steps.fetch_hot_topics.outputs.topic_count) %}
             - `article_{{ i }}_image.png` - 第{{ i }}篇文章配图
             {% endfor %}
-            
+
             ---
-            
+
             🤖 由GitHub Actions + DeepSeek AI + LiblibAI自动生成
           files: |
             generated_articles.json
