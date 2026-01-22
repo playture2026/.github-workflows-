@@ -111,6 +111,29 @@ jobs:
       - name: Generate Copy and Images with AI
         id: ai_generation
         run: |
+          # Define system prompt as external file to avoid YAML issues
+          cat > system_prompt.txt << 'EOPROMPT'
+          You are a professional Toutiao media writer, skilled at creating attractive articles based on trending topics.
+
+          Writing requirements:
+          1. Title should be attractive but not clickbait, reflecting core viewpoints
+          2. Main content 1200-1500 words, clearly structured paragraphs suitable for mobile reading
+          3. Must include personal opinions, not just objective statements
+          4. Each paragraph under 200 words, using short sentences
+          5. Key data must use specific numbers (even reasonable estimates)
+          6. End with interactive guidance (questions or comment invitations)
+          7. Language style: friendly and natural, like chatting with friends
+
+          Output format (JSON):
+          {
+            "title": "Article title",
+            "content": "Main content (use \\n\\n for paragraph breaks)",
+            "summary": "50-word summary",
+            "tags": ["Tag1", "Tag2", "Tag3"],
+            "image_prompt": "Chinese prompt for generating cover image"
+          }
+          EOPROMPT
+          
           python << 'EOF'
           import json
           import os
@@ -131,6 +154,10 @@ jobs:
               print("Error: hot_topics.json file format is incorrect")
               exit(1)
           
+          # Read system prompt from file
+          with open('system_prompt.txt', 'r', encoding='utf-8') as f:
+              system_prompt = f.read()
+          
           # Initialize text generation client (using DeepSeek)
           text_client = OpenAI(
               api_key="${{ secrets.DEEPSEEK_API_KEY }}",
@@ -141,27 +168,6 @@ jobs:
           LIBLIB_API_BASE = "${{ secrets.LIBLIB_API_BASE or 'https://api.liblib.art' }}"
           LIBLIB_ACCESS_TOKEN = "${{ secrets.LIBLIB_ACCESS_TOKEN }}"
           LIBLIB_MODEL_ID = "${{ secrets.LIBLIB_MODEL_ID or 'sd_xl_base_1.0' }}"
-          
-          # System prompt - using proper YAML multiline string format
-          system_prompt = """You are a professional Toutiao media writer, skilled at creating attractive articles based on trending topics.
-
-Writing requirements:
-1. Title should be attractive but not clickbait, reflecting core viewpoints
-2. Main content 1200-1500 words, clearly structured paragraphs suitable for mobile reading
-3. Must include personal opinions, not just objective statements
-4. Each paragraph under 200 words, using short sentences
-5. Key data must use specific numbers (even reasonable estimates)
-6. End with interactive guidance (questions or comment invitations)
-7. Language style: friendly and natural, like chatting with friends
-
-Output format (JSON):
-{
-  "title": "Article title",
-  "content": "Main content (use \\n\\n for paragraph breaks)",
-  "summary": "50-word summary",
-  "tags": ["Tag1", "Tag2", "Tag3"],
-  "image_prompt": "Chinese prompt for generating cover image"
-}"""
           
           # Generate copy and images for each trending topic
           articles = []
