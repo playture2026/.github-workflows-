@@ -1,33 +1,34 @@
-name: Hot Topic Auto Writer with Images (LiblibAI)
+name: Hot Topic Auto Writer with Images
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Execute every day at 00:00 UTC (8:00 AM Beijing time)
-  workflow_dispatch:  # Support manual trigger
+    - cron: '0 0 * * *'  # 每天 UTC 时间 00:00 运行
+  workflow_dispatch:  # 支持手动触发
+
+env:
+  PYTHON_VERSION: '3.11'
 
 jobs:
   writer:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      
-      # Set up Python environment
+          fetch-depth: 0  # 获取完整历史记录
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      
-      # Install dependencies
+          python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Install Dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install requests beautifulsoup4 lxml openai pillow
 
-      # Verify required secrets exist
-      - name: Verify API Keys
+      - name: Verify Required Secrets
         run: |
           if [ -z "${{ secrets.DEEPSEEK_API_KEY }}" ]; then
             echo "Error: Missing DEEPSEEK_API_KEY secret"
@@ -38,177 +39,148 @@ jobs:
             exit 1
           fi
           if [ -z "${{ secrets.EMAIL_USERNAME }}" ] || [ -z "${{ secrets.EMAIL_PASSWORD }}" ]; then
-            echo "Error: Missing EMAIL related secrets"
+            echo "Error: Missing EMAIL credentials"
             exit 1
           fi
-          echo "API key validation passed"
+          echo "All required secrets are present"
 
-      # Step 1: Get trending data
-      - name: Get Trending Topics
-        id: fetch_hot_topics
+      - name: Fetch Trending Topics
+        id: fetch_trends
         run: |
-          python << 'EOF'
-          import requests
+          python3 -c "
           import json
+          import requests
           from datetime import datetime
           
-          # Function to get actual trending data
+          # 获取热门话题数据
           def get_hot_topics():
-              """
-              Get real trending data from various sources
-              """
-              try:
-                  # For demo purposes, using mock data since direct scraping might face restrictions
-                  hot_topics = [
-                      {
-                          "title": f"今日科技突破：{datetime.now().strftime('%m月%d日')}人工智能新进展",
-                          "platform": "Toutiao",
-                          "hotness": 1200000,
-                          "url": "https://example.com/news1",
-                          "category": "科技"
-                      },
-                      {
-                          "title": f"新能源汽车销量再次创新高 - {datetime.now().strftime('%Y年')}",
-                          "platform": "Weibo", 
-                          "hotness": 950000,
-                          "url": "https://example.com/news2",
-                          "category": "财经"
-                      },
-                      {
-                          "title": f"量子计算取得重要里程碑突破",
-                          "platform": "Zhihu",
-                          "hotness": 820000,
-                          "url": "https://example.com/news3",
-                          "category": "科学"
-                      }
-                  ]
-                  return hot_topics
-              except Exception as e:
-                  print(f"Failed to get trending data: {str(e)}")
-                  # Return default data in case of API call failure
-                  return [
-                      {
-                          "title": f"今日综合新闻摘要 - {datetime.now().strftime('%Y-%m-%d')}",
-                          "platform": "Comprehensive",
-                          "hotness": 500000,
-                          "url": "https://example.com/default",
-                          "category": "综合"
-                      }
-                  ]
+              # 模拟真实数据获取（实际项目中应替换为真实的API调用）
+              hot_topics = [
+                  {
+                      'title': f'今日科技突破：{datetime.now().strftime(\"%m月%d日\")}AI新进展',
+                      'platform': 'TechNews',
+                      'hotness': 1200000,
+                      'url': 'https://example.com/news1',
+                      'category': '科技'
+                  },
+                  {
+                      'title': f'新能源汽车销量再创新高 - {datetime.now().strftime(\"%Y年\")}',
+                      'platform': 'FinanceDaily',
+                      'hotness': 950000,
+                      'url': 'https://example.com/news2',
+                      'category': '财经'
+                  },
+                  {
+                      'title': f'量子计算取得重要里程碑突破',
+                      'platform': 'ScienceWeekly',
+                      'hotness': 820000,
+                      'url': 'https://example.com/news3',
+                      'category': '科学'
+                  }
+              ]
+              return hot_topics
           
-          # Get trending data
+          # 获取并保存热门话题
           hot_topics = get_hot_topics()
           
-          # Save trending data
+          # 保存数据到文件
           with open('hot_topics.json', 'w', encoding='utf-8') as f:
               json.dump(hot_topics, f, ensure_ascii=False, indent=2)
           
-          print(f"::set-output name=topic_count::{len(hot_topics)}")
-          
-          EOF
-      
-      # Step 2: AI generate copy + images (using LiblibAI)
-      - name: Generate Copy and Images with AI
+          # 设置输出值
+          print(f'::set-output name=topic_count::{len(hot_topics)}')
+          print(f'::set-output name=first_title::{hot_topics[0]["title"]}')
+          "
+
+      - name: Generate Content and Images with AI
         id: ai_generation
         run: |
-          # Define system prompt as external file to avoid YAML issues
+          # 创建系统提示文件
           cat > system_prompt.txt << 'EOPROMPT'
-          You are a professional Toutiao media writer, skilled at creating attractive articles based on trending topics.
-
+          You are a professional media writer skilled at creating attractive articles based on trending topics.
+          
           Writing requirements:
-          1. Title should be attractive but not clickbait, reflecting core viewpoints
-          2. Main content 1200-1500 words, clearly structured paragraphs suitable for mobile reading
-          3. Must include personal opinions, not just objective statements
-          4. Each paragraph under 200 words, using short sentences
-          5. Key data must use specific numbers (even reasonable estimates)
-          6. End with interactive guidance (questions or comment invitations)
-          7. Language style: friendly and natural, like chatting with friends
-
+          1. Title should be attractive but not clickbait
+          2. Main content 1200-1500 words, well-structured
+          3. Include personal opinions and analysis
+          4. Use specific numbers and data points
+          5. End with interactive questions
+          
           Output format (JSON):
           {
             "title": "Article title",
-            "content": "Main content (use \\n\\n for paragraph breaks)",
+            "content": "Main content (use \n\n for paragraph breaks)",
             "summary": "50-word summary",
             "tags": ["Tag1", "Tag2", "Tag3"],
-            "image_prompt": "Chinese prompt for generating cover image"
+            "image_prompt": "Detailed prompt for generating cover image"
           }
           EOPROMPT
           
-          python << 'EOF'
+          python3 -c "
           import json
           import os
           import base64
           import requests
           from datetime import datetime
           from openai import OpenAI
-          import time
           
-          # Read trending data
-          try:
-              with open('hot_topics.json', 'r', encoding='utf-8') as f:
-                  hot_topics = json.load(f)
-          except FileNotFoundError:
-              print("Error: Cannot find hot_topics.json file")
-              exit(1)
-          except json.JSONDecodeError:
-              print("Error: hot_topics.json file format is incorrect")
-              exit(1)
+          # 读取热门话题数据
+          with open('hot_topics.json', 'r', encoding='utf-8') as f:
+              hot_topics = json.load(f)
           
-          # Read system prompt from file
+          # 读取系统提示
           with open('system_prompt.txt', 'r', encoding='utf-8') as f:
               system_prompt = f.read()
           
-          # Initialize text generation client (using DeepSeek)
-          text_client = OpenAI(
-              api_key="${{ secrets.DEEPSEEK_API_KEY }}",
-              base_url="https://api.deepseek.com"
+          # 初始化DeepSeek客户端
+          client = OpenAI(
+              api_key='${{ secrets.DEEPSEEK_API_KEY }}',
+              base_url='https://api.deepseek.com'
           )
           
-          # LiblibAI configuration
-          LIBLIB_API_BASE = "${{ secrets.LIBLIB_API_BASE or 'https://api.liblib.art' }}"
-          LIBLIB_ACCESS_TOKEN = "${{ secrets.LIBLIB_ACCESS_TOKEN }}"
-          LIBLIB_MODEL_ID = "${{ secrets.LIBLIB_MODEL_ID or 'sd_xl_base_1.0' }}"
+          # LiblibAI配置
+          LIBLIB_API_BASE = '${{ secrets.LIBLIB_API_BASE || ''https://api.liblib.art'' }}'
+          LIBLIB_ACCESS_TOKEN = '${{ secrets.LIBLIB_ACCESS_TOKEN }}'
+          LIBLIB_MODEL_ID = '${{ secrets.LIBLIB_MODEL_ID || ''sd_xl_base_1.0'' }}'
           
-          # Generate copy and images for each trending topic
+          # 存储生成的文章
           articles = []
-          images = []
           
-          for idx, topic in enumerate(hot_topics[:3], 1):  # Process only first 3
-              print(f"\\nGenerating copy for #{idx} trend: {topic['title']}")
+          for idx, topic in enumerate(hot_topics[:3], 1):
+              print(f'\\nProcessing topic {idx}: {topic[\"title\"]}')
               
-              user_prompt = f"""Please write an article suitable for Toutiao based on the following trending topic:
-
-Trend Title: {topic['title']}
-Source Platform: {topic['platform']}
-Popularity: {topic['hotness']}
-Category: {topic.get('category', 'Unknown')}
-Time: {datetime.now().strftime('%Y年%m月%d日')}
-
-Requirements:
-- Analyze the background and development of this trend in depth
-- Provide unique personal insights
-- Bring actual value or new knowledge to readers
-- Avoid empty talk, every sentence should have meaning
-- Also generate Chinese prompt for cover image (image_prompt), requiring concise and powerful, suitable for AI painting"""
+              user_prompt = f'''
+              Please write a Toutiao-style article based on this trending topic:
+              
+              Topic: {topic['title']}
+              Platform: {topic['platform']}
+              Popularity: {topic['hotness']}
+              Category: {topic.get('category', 'General')}
+              
+              Requirements:
+              - In-depth analysis with unique insights
+              - Practical value for readers
+              - Concise and engaging writing
+              - Include Chinese prompt for cover image
+              '''
               
               try:
-                  # Generate copy
-                  response = text_client.chat.completions.create(
-                      model="deepseek-chat",
+                  # 调用AI生成文章
+                  response = client.chat.completions.create(
+                      model='deepseek-chat',
                       messages=[
-                          {"role": "system", "content": system_prompt},
-                          {"role": "user", "content": user_prompt}
+                          {'role': 'system', 'content': system_prompt},
+                          {'role': 'user', 'content': user_prompt}
                       ],
                       temperature=0.8,
                       max_tokens=2000
                   )
                   
-                  # Parse AI returned content
+                  # 解析返回的内容
                   ai_content = response.choices[0].message.content.strip()
                   
-                  # Try to parse JSON format
-                  article_data = None
-                  # Extract JSON part from AI response (may have other text)
+                  # 尝试提取JSON部分
+                  article_data = {}
                   start_idx = ai_content.find('{')
                   end_idx = ai_content.rfind('}') + 1
                   if start_idx != -1 and end_idx != 0:
@@ -216,158 +188,153 @@ Requirements:
                       try:
                           article_data = json.loads(json_str)
                       except json.JSONDecodeError:
-                          print(f"JSON parsing failed, trying manual construction")
+                          print('JSON parsing failed, using fallback')
+                          article_data = {
+                              'title': topic['title'],
+                              'content': ai_content.replace('\\n', '\\n\\n'),
+                              'summary': ai_content[:50] + '...',
+                              'tags': [topic.get('category', 'Trends'), 'News'],
+                              'image_prompt': topic['title'] + ', professional illustration'
+                          }
                   
-                  # If unable to parse JSON, manually construct
-                  if not article_data:
-                      article_data = {
-                          "title": topic['title'],
-                          "content": ai_content.replace('\\n', '\\n\\n'),
-                          "summary": ai_content[:50] + "...",
-                          "tags": [topic.get('category', 'Trends'), "News"],
-                          "image_prompt": topic['title'] + ", professional illustration, modern design"
-                      }
-                  
-                  # Generate image (using LiblibAI)
+                  # 生成图像
                   image_prompt = article_data.get('image_prompt', 
-                      f"{article_data['title']}, professional illustration, modern design, clean background")
+                      f'{article_data[\"title\"]}, professional illustration, modern design')
                   
-                  print(f"Generating image, prompt: {image_prompt}")
+                  print(f'Generating image with prompt: {image_prompt}')
                   
-                  # Call LiblibAI API to generate image
-                  liblib_headers = {
-                      "Authorization": f"Bearer {LIBLIB_ACCESS_TOKEN}",
-                      "Content-Type": "application/json"
+                  # 调用LiblibAI生成图像
+                  headers = {
+                      'Authorization': f'Bearer {LIBLIB_ACCESS_TOKEN}',
+                      'Content-Type': 'application/json'
                   }
                   
-                  liblib_payload = {
-                      "prompt": image_prompt,
-                      "negative_prompt": "low quality, blurry, anatomical errors, extra fingers, ugly, watermark",
-                      "model": LIBLIB_MODEL_ID,
-                      "width": 1024,
-                      "height": 1024,
-                      "steps": 30,
-                      "cfg_scale": 7
+                  payload = {
+                      'prompt': image_prompt,
+                      'negative_prompt': 'low quality, blurry, bad anatomy',
+                      'model': LIBLIB_MODEL_ID,
+                      'width': 1024,
+                      'height': 1024,
+                      'steps': 30,
+                      'cfg_scale': 7
                   }
                   
-                  liblib_response = requests.post(
-                      f"{LIBLIB_API_BASE}/v1/images/generations",
-                      headers=liblib_headers,
-                      json=liblib_payload,
-                      timeout=120  # Increase timeout
+                  image_response = requests.post(
+                      f'{LIBLIB_API_BASE}/v1/images/generations',
+                      headers=headers,
+                      json=payload,
+                      timeout=120
                   )
                   
-                  if liblib_response.status_code != 200:
-                      print(f"Warning: LiblibAI API call failed: {liblib_response.text}")
-                      # Create placeholder image
-                      image_filename = f"article_{idx}_image.png"
-                      import io
-                      from PIL import Image
-                      img = Image.new('RGB', (1024, 1024), color='white')
-                      img.save(image_filename)
-                      print(f"Created placeholder image: {image_filename}")
-                  else:
-                      liblib_result = liblib_response.json()
-                      
-                      # Process returned image (support URL or Base64)
-                      if "images" in liblib_result and len(liblib_result["images"]) > 0:
-                          if "url" in liblib_result["images"][0]:
-                              # Method 1: Return image URL, need download
-                              image_url = liblib_result["images"][0]["url"]
-                              image_filename = f"article_{idx}_image.png"
-                              
+                  if image_response.status_code == 200:
+                      result = image_response.json()
+                      if 'images' in result and len(result['images']) > 0:
+                          if 'url' in result['images'][0]:
+                              # 下载图像
+                              image_url = result['images'][0]['url']
+                              image_filename = f'article_{idx}_image.png'
                               import urllib.request
                               urllib.request.urlretrieve(image_url, image_filename)
-                              
-                          elif "b64_json" in liblib_result["images"][0]:
-                              # Method 2: Return Base64 encoded, decode directly
-                              image_data = base64.b64decode(liblib_result["images"][0]["b64_json"])
-                              image_filename = f"article_{idx}_image.png"
-                              
+                          elif 'b64_json' in result['images'][0]:
+                              # 解码Base64图像
+                              image_data = base64.b64decode(result['images'][0]['b64_json'])
+                              image_filename = f'article_{idx}_image.png'
                               with open(image_filename, 'wb') as img_file:
                                   img_file.write(image_data)
                           else:
-                              print("Warning: LiblibAI returned data format unexpected, creating placeholder image")
-                              image_filename = f"article_{idx}_image.png"
+                              # 创建占位符图像
                               from PIL import Image
                               img = Image.new('RGB', (1024, 1024), color='lightblue')
+                              image_filename = f'article_{idx}_image.png'
                               img.save(image_filename)
                       else:
-                          print("Warning: LiblibAI did not return image data, creating placeholder image")
-                          image_filename = f"article_{idx}_image.png"
+                          # 创建占位符图像
                           from PIL import Image
                           img = Image.new('RGB', (1024, 1024), color='lightgreen')
+                          image_filename = f'article_{idx}_image.png'
                           img.save(image_filename)
+                  else:
+                      # 创建占位符图像
+                      from PIL import Image
+                      img = Image.new('RGB', (1024, 1024), color='lightgray')
+                      image_filename = f'article_{idx}_image.png'
+                      img.save(image_filename)
                   
-                  print(f"✓ Article generated successfully: {article_data['title']}")
-                  print(f"✓ Image generated successfully: {image_filename}")
-                  
+                  # 添加额外信息
                   article_data['source_topic'] = topic
-                  article_data['generated_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                  article_data['generated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                   article_data['image_filename'] = image_filename
-                  article_data['image_prompt'] = image_prompt
-                  articles.append(article_data)
-                  images.append(image_filename)
                   
-                  # Add delay between requests to avoid rate limiting
-                  time.sleep(5)
+                  articles.append(article_data)
+                  print(f'Successfully generated article: {article_data[\"title\"]}')
                   
               except Exception as e:
-                  print(f"✗ Generation failed: {str(e)}")
-                  # Continue processing next trend
+                  print(f'Error generating article {idx}: {str(e)}')
                   continue
           
-          # Save all articles
+          # 保存所有文章
           with open('generated_articles.json', 'w', encoding='utf-8') as f:
               json.dump(articles, f, ensure_ascii=False, indent=2)
           
-          print(f"\\nGenerated {len(articles)} articles + {len(images)} images")
-          
-          # Generate email body (including image links)
-          email_body = f"""Today's Trending Auto Copy - {datetime.now().strftime('%Y-%m-%d')}
-===================================
+          print(f'\\nSuccessfully generated {len(articles)} articles with images')
+          "
+        
+        if: steps.fetch_trends.outputs.topic_count > 0
 
-Generated {len(articles)} articles (each includes AI-generated image):
-"""
+      - name: Prepare Email Content
+        run: |
+          python3 -c "
+          import json
+          from datetime import datetime
+          
+          # 读取生成的文章
+          try:
+              with open('generated_articles.json', 'r', encoding='utf-8') as f:
+                  articles = json.load(f)
+          except FileNotFoundError:
+              articles = []
+          
+          # 生成邮件内容
+          email_body = f'''Today's Trending Auto Copy - {datetime.now().strftime('%Y-%m-%d')}
+          ===================================
+          
+          Generated {len(articles)} articles (each includes AI-generated image):
+          '''
           
           for idx, article in enumerate(articles, 1):
-              email_body += f"""
---------------------
-[Article {idx}]
-Title: {article['title']}
-Summary: {article['summary']}
-Tags: {', '.join(article['tags'])}
-
-[Main Content]
-{article['content']}
-
-[AI Generated Image]
-Prompt: {article['image_prompt']}
-Filename: {article['image_filename']}
-Image uploaded to GitHub Release attachment
-
-[Original Trend]
-Source: {article['source_topic']['platform']}
-Popularity: {article['source_topic']['hotness']:,}
-Category: {article['source_topic'].get('category', 'Unknown')}
-
-"""
+              email_body += f'''
+          --------------------
+          [Article {idx}]
+          Title: {article['title']}
+          Summary: {article['summary']}
+          Tags: {', '.join(article['tags'])}
           
-          email_body += f"""
-===================================
-Generation Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Automatically generated by AI assistant | GitHub Actions + LiblibAI
-"""
+          [Main Content]
+          {article['content'][:500]}...
           
-          # Save email body to file
+          [AI Generated Image]
+          Prompt: {article['image_prompt']}
+          Filename: {article['image_filename']}
+          
+          [Original Trend]
+          Source: {article['source_topic']['platform']}
+          Popularity: {article['source_topic']['hotness']:,}
+          Category: {article['source_topic'].get('category', 'Unknown')}
+          
+          '''
+          
+          email_body += f'''
+          ===================================
+          Generation Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+          Automatically generated by AI assistant | GitHub Actions
+          '''
+          
+          # 保存邮件内容
           with open('email_body.txt', 'w', encoding='utf-8') as f:
               f.write(email_body)
-          
-          print("Email body generated")
-          
-          EOF
-      
-      # Step 3: Send email notification
+          "
+        if: steps.ai_generation.conclusion == 'success'
+
       - name: Send Email Notification
         uses: dawidd6/action-send-mail@v3
         with:
@@ -375,66 +342,53 @@ Automatically generated by AI assistant | GitHub Actions + LiblibAI
           server_port: 587
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "📝🖼️ Today's Trending Auto Copy+Images (LiblibAI) - ${{ github.event.head_commit.timestamp || 'Just Generated' }}"
+          subject: "📝🖼️ Today's Trending Auto Copy+Images - ${{ github.event.head_commit.timestamp || 'Just Generated' }}"
           to: ${{ secrets.EMAIL_TO }}
           from: "AI Trend Assistant <${{ secrets.EMAIL_USERNAME }}>"
-          priority: high
+          priority: normal
           body: file://email_body.txt
           convert_markdown: false
           attachments: |
             article_1_image.png
             article_2_image.png
             article_3_image.png
-        if: ${{ success() && steps.fetch_hot_topics.outputs.topic_count > 0 }}
-      
-      # Step 4: Upload articles and images to repository
-      - name: Upload Generated Articles and Images
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "🤖 AI generated today's trending copy+images (LiblibAI) ${{ github.event.head_commit.timestamp || 'Auto Commit' }}"
-          file_pattern: 'generated_articles.json hot_topics.json article_*.png'
-          skip_dirty_check: true
-          skip_fetch: true
+        if: ${{ success() && steps.ai_generation.conclusion == 'success' }}
+
+      - name: Commit Generated Files
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          git commit -m "🤖 AI generated today's trending content [skip ci]" || echo "No changes to commit"
+          git push origin main || echo "Push failed - may be due to no changes"
         if: ${{ success() }}
-          
-      # Step 5: Create release (with images)
-      - name: Create Daily Release
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: daily-${{ github.run_id }}
-          name: "📄🖼️ Today's Trending Copy+Images (LiblibAI) - ${{ github.event.head_commit.timestamp || 'Latest' }}"
+          name: "📄🖼️ Daily Trending Content - ${{ github.event.head_commit.timestamp || 'Latest' }}"
           body: |
-            ## Today's Auto-generated Trending Copy (with AI Images)
-
-            This release contains AI-generated articles based on today's trends, each article comes with a LiblibAI-generated cover image.
-
-            ### 📚 Article List
-
-            📄 Download `generated_articles.json` file to view complete content.
-
-            ### 🖼️ Image List
-
-            Each article has a 1024x1024 AI-generated cover image
-
+            ## Today's AI-Generated Trending Content
+            
+            This release contains articles automatically generated based on trending topics, each with an AI-generated cover image.
+            
+            ### 📊 Statistics
+            - Generated on: ${{ github.event.head_commit.timestamp || 'Now' }}
+            - Trending topics processed: ${{ steps.fetch_trends.outputs.topic_count }}
+            - Articles created: ${{ steps.ai_generation.conclusion == 'success' && 'Success' || 'Failed' }}
+            
             ---
-
-            🤖 Automatically generated by GitHub Actions + DeepSeek AI + LiblibAI
+            🤖 Automatically generated by GitHub Actions + AI
           files: |
             generated_articles.json
             hot_topics.json
             email_body.txt
-            article_*.png
+            article_1_image.png
+            article_2_image.png
+            article_3_image.png
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: ${{ success() }}
-      
-      # Step 6: Clean up old data (keep recent 30 days)
-      - name: Clean Up Historical Data
-        run: |
-          # Delete expired tags (keep most recent 10)
-          git tag | sort -V | head -n -10 | xargs -r git tag -d 2>/dev/null || true
-          # Push deleted tags to remote
-          git tag | sort -V | head -n -10 | xargs -r git push origin --delete 2>/dev/null || true
-        if: ${{ always() }}
