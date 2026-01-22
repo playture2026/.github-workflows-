@@ -397,7 +397,7 @@ jobs:
           body: |
             ## 今日自动生成的热点文案（含AI配图）
 
-            本发布包含了AI根据今日热点自动生成的${{ steps.fetch_hot_topics.outputs.topic_count }}篇文章，每篇文章都配有LiblibAI生成的封面图。
+            本发布包含了AI根据今日热点自动生成的文章，每篇文章都配有LiblibAI生成的封面图。
 
             ### 📚 文章列表
 
@@ -405,10 +405,7 @@ jobs:
 
             ### 🖼️ 配图列表
 
-            每篇文章都有一张AI生成的1024x1024封面图：
-            {% for i in (1..steps.fetch_hot_topics.outputs.topic_count) %}
-            - `article_{{ i }}_image.png` - 第{{ i }}篇文章配图
-            {% endfor %}
+            每篇文章都有一张AI生成的1024x1024封面图
 
             ---
 
